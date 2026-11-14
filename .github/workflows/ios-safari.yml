@@ -125,16 +125,19 @@ jobs:
           # The first start installs Maestro's driver (minutes on these Macs); one retry if it times out.
           maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" \
             || maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" || status=1
-          for name in scroll interact; do
-            xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$name.mp4" &
-            recorder=$!
-            sleep 2
-            maestro test -e BASE="$BASE" --debug-output "debug-$name" "$flows/$name.yml" || status=1
-            # SIGINT lets simctl finish the mp4.
-            kill -INT "$recorder"
-            wait "$recorder" || true
+          for flow in "scroll s01-top s02-end" "interact i01-front i14-exit-demo"; do
+            set -- $flow
+            rm -f stop-recording
+            bash "$GITHUB_WORKSPACE/tools/record.sh" "$UDID" "$PWD/$1.mp4" "$2" "$3" &
+            maestro test -e BASE="$BASE" --debug-output "debug-$1" "$flows/$1.yml" || status=1
+            touch stop-recording
+            wait
           done
-          cp -R ~/.maestro/tests maestro-tests 2>/dev/null || true
+          rm -f stop-recording
+          # Maestro saves takeScreenshot files in its hidden output folders: one flat copy here.
+          find "$GITHUB_WORKSPACE" "$HOME/.maestro" -name '[wsi][0-9][0-9]-*.png' -not -path "$PWD/[wsi][0-9][0-9]-*" \
+            -exec cp {} . \; 2>/dev/null || true
+          ls -la
           exit "$status"
 
       - name: Upload
@@ -143,6 +146,7 @@ jobs:
         with:
           name: part-maestro
           path: out/
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
 
@@ -161,5 +165,6 @@ jobs:
         with:
           name: ios-safari-${{ inputs.label }}
           pattern: part-*
+          include-hidden-files: true
           delete-merged: true
           retention-days: 14

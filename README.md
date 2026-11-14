@@ -35,6 +35,8 @@ With `base=local` each Mac serves `dist/` with `serve.mjs` (it follows the Cloud
 ## Files
 
 - `tools/shoot.py`: boots one simulator, opens each URL in Safari and screenshots it once the screen stops changing.
+- `tools/record.sh`: records the simulator screen between two screenshots a Maestro flow takes.
+- `tools/sheet.py`: `python tools/sheet.py <download dir>` makes one contact sheet per device, `sheet-<device>.png`, in that folder (needs Pillow).
 - `tools/site.sh`: picks the site (the live origin, or `dist/` served on the Mac).
 - `flows/`: the Maestro flows.
 - `serve.mjs`: the static server for `base=local`.

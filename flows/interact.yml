@@ -17,12 +17,12 @@ appId: com.apple.mobilesafari
 - takeScreenshot: i02-get-the-app
 - scrollUntilVisible:
     element:
-      text: "When am I charged\?"
+      text: 'When am I charged\?'
     direction: DOWN
     timeout: 40000
     optional: true
 - tapOn:
-    text: "When am I charged\?"
+    text: 'When am I charged\?'
     optional: true
 - waitForAnimationToEnd:
     timeout: 4000

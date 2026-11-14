@@ -8,6 +8,7 @@
 --step: front-page scroll step in points (about 0.72 of the screen height, so shots overlap).
 """
 import argparse
+import glob
 import itertools
 import json
 import os
@@ -43,7 +44,21 @@ DARK = [("dark-front-y00000", "y=0", "#front"), ("dark-app-home", "", "#app"), (
 
 
 def run(*args, check=True):
-    return subprocess.run(args, check=check, capture_output=True, text=True).stdout
+    p = subprocess.run(args, capture_output=True, text=True)
+    if check and p.returncode:
+        raise SystemExit(f"{' '.join(args)} exited {p.returncode}: {p.stderr.strip()}")
+    return p.stdout
+
+
+def retry(*args, tries=4):
+    """simctl openurl/launch can time out (exit 60) while a fresh simulator is still settling."""
+    for i in range(tries):
+        p = subprocess.run(args, capture_output=True, text=True)
+        if p.returncode == 0:
+            return
+        print(f"{args[2]} exited {p.returncode}, try {i + 1}: {p.stderr.strip()}", flush=True)
+        time.sleep(10)
+    raise SystemExit(f"{' '.join(args)} failed {tries} times")
 
 
 def pick(names):
@@ -73,6 +88,8 @@ def boot(names):
     run("xcrun", "simctl", "status_bar", udid, "override", "--time", "9:41", "--batteryState", "charged",
         "--batteryLevel", "100", "--cellularBars", "4", check=False)
     run("xcrun", "simctl", "ui", udid, "appearance", "light")
+    retry("xcrun", "simctl", "launch", udid, "com.apple.mobilesafari")
+    time.sleep(5)
     return device, runtime
 
 
@@ -91,9 +108,37 @@ def same(a, b):
     return changed / (a.size[0] * a.size[1]) < 0.003
 
 
-def shot(udid, url, path, log):
-    """Open the URL, then screenshot until three shots in a row match (loaded and still), at most ~16 s."""
-    run("xcrun", "simctl", "openurl", udid, url)
+def blank(img):
+    """Still loading: one flat colour between the status bar and Safari's bottom bar."""
+    w, h = img.size
+    body = img.crop((0, h // 10, w, h * 85 // 100))
+    hist = body.histogram()
+    top = max(range(256), key=hist.__getitem__)
+    return sum(hist[max(0, top - 6):top + 7]) / (body.size[0] * body.size[1]) > 0.985
+
+
+TAB_DIRS = []
+
+
+def close_tabs(udid):
+    """Quit Safari and drop its saved tabs, so the next openurl opens Safari with that one tab.
+    (Each openurl adds a tab: dozens of them slowed Safari to a minute a page and filled the iPad tab bar.)"""
+    run("xcrun", "simctl", "terminate", udid, "com.apple.mobilesafari", check=False)
+    if not TAB_DIRS:
+        root = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data")
+        TAB_DIRS.extend(sorted({os.path.dirname(p) for p in glob.glob(f"{root}/**/SafariTabs.db", recursive=True)}))
+        print("Safari tabs live in", TAB_DIRS or "(not found)", flush=True)
+    for d in TAB_DIRS:
+        for p in glob.glob(f"{d}/SafariTabs.db*"):
+            os.remove(p)
+
+
+def shot(udid, url, path, log, last):
+    """Open the URL in a fresh Safari with one tab, then screenshot until the page is not blank, differs from the
+    last screen (`last`), and three shots in a row match. A page that keeps moving is taken at 20 s;
+    a blank one, or one still showing the last screen, is waited for up to 45 s."""
+    close_tabs(udid)
+    retry("xcrun", "simctl", "openurl", udid, url)
     start = time.time()
     time.sleep(2.5)
     prev, calm = None, 0
@@ -102,10 +147,13 @@ def shot(udid, url, path, log):
         cur = look(path)
         calm = calm + 1 if prev is not None and same(prev, cur) else 0
         prev = cur
-        if calm >= 2 or time.time() - start > 16:
+        waited = time.time() - start
+        new = not blank(cur) and not (last is not None and same(last, cur))
+        if (new and (calm >= 2 or waited > 20)) or waited > 45:
             break
         time.sleep(0.5)
-    state = "still" if calm >= 2 else "still moving at 16 s"
+    state = ("BLANK" if blank(cur) else "same as the last screen" if last is not None and same(last, cur)
+             else "still" if calm >= 2 else "still moving")
     log.write(f"{os.path.basename(path)}\t{time.time() - start:.1f}s\t{state}\t{url}\n")
     log.flush()
     print(os.path.basename(path), state, flush=True)
@@ -132,35 +180,40 @@ def main():
     with open(f"{out}/device.txt", "w") as f:
         f.write(f"{device['name']}\t{runtime.rsplit('.', 1)[-1]}\t{udid}\t{base}\n")
     n = itertools.count(1)  # r=<n> makes every URL new, so Safari loads it fresh even when only the hash differs
-
-    def url(path, query, hash_):
-        return f"{base}{path}?{query + '&' if query else ''}r={next(n)}{hash_}"
-
     log = open(f"{out}/log.tsv", "w")
-    shot(udid, url("/", "y=0", "#front"), f"{out}/00-first-launch.png", log)
+    last = None
 
-    i = 1
-    prev, y = None, 0
+    def take(name, path, query, hash_):
+        nonlocal last
+        url = f"{base}{path}?{query + '&' if query else ''}r={next(n)}{hash_}"
+        prev, last = last, shot(udid, url, f"{out}/{name}.png", log, last)
+        return prev
+
+    # Safari's first launches show its start page and a one-time tip; these two shots take them.
+    take("00a-first-launch", "/", "y=0", "#front")
+    take("00b-second-launch", "/support", "", "")
+
+    i, y = 1, 0
     while y <= FRONT_MAX_Y:
-        path = f"{out}/{i:02d}-front-y{y:05d}.png"
-        cur = shot(udid, url("/", f"y={y}", "#front"), path, log)
-        if prev is not None and same(prev, cur):  # past the page end: the same view again
-            os.remove(path)
+        name = f"{i:02d}-front-y{y:05d}"
+        prev = take(name, "/", f"y={y}", "#front")
+        if i > 1 and same(prev, last):  # past the page end: the same view again
+            os.remove(f"{out}/{name}.png")
             log.write(f"page end before y={y}\n")
             break
-        prev, y, i = cur, y + args.step, i + 1
+        y, i = y + args.step, i + 1
 
     for name, query, hash_ in DEMO:
-        shot(udid, url("/", query, hash_), f"{out}/{i:02d}-{name}.png", log)
+        take(f"{i:02d}-{name}", "/", query, hash_)
         i += 1
     for name, path in LEGAL:
-        shot(udid, url(path, "", ""), f"{out}/{i:02d}-{name}.png", log)
+        take(f"{i:02d}-{name}", path, "", "")
         i += 1
 
     run("xcrun", "simctl", "ui", udid, "appearance", "dark")
     time.sleep(2)
     for name, query, hash_ in DARK:
-        shot(udid, url("/", query, hash_), f"{out}/{i:02d}-{name}.png", log)
+        take(f"{i:02d}-{name}", "/", query, hash_)
         i += 1
     log.close()
 
