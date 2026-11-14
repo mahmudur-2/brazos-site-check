@@ -1,29 +1,22 @@
-# The in-app tap path where Playwright WebKit on Windows crashed during View Transitions
-# ("Target crashed" on the 4th tap, 3 of 3 runs): /#app, Discover, Inbox, first conversation, Profile.
+# An old demo address (recorded as crash.mp4). Since 2026-11-14 the site has no demo: <base>/#app-customer must show
+# the front page (its hero, no demo tab bar), and its "See how it works" button must land on the how-it-works section.
+# The file keeps its name and its c* screenshot names, so the workflow runs it unchanged. Hard checks: a wrong page
+# fails the run, after the screenshot of that step is taken.
 appId: com.apple.mobilesafari
 ---
-- openLink: ${BASE}/?r=c1#app
+- openLink: ${BASE}/#app-customer
 - extendedWaitUntil:
-    visible: 'Inbox.*'
-    timeout: 60000
-- takeScreenshot: c01-app
-- tapOn:
-    text: "Discover"
-    optional: true
-- takeScreenshot: c02-discover
-- tapOn:
-    text: 'Inbox.*'
-    optional: true
-- takeScreenshot: c03-inbox
-- tapOn:
-    text: ".*Andre.*"
-    index: 0
-    optional: true
-- takeScreenshot: c04-first-conversation
-- tapOn:
-    text: "Profile"
-    optional: true
-- takeScreenshot: c05-profile
+    visible: "Get the app"
+    timeout: 90000
 - waitForAnimationToEnd:
     timeout: 5000
-- takeScreenshot: c06-profile-settled
+- takeScreenshot: c01-old-demo-address
+- assertVisible: 'Get it done.*'
+- assertNotVisible: 'Inbox.*'
+- tapOn:
+    text: "See how it works"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: c02-see-how-it-works
+- assertVisible: 'Three steps.*'

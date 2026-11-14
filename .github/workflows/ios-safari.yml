@@ -137,7 +137,8 @@ jobs:
           }
           flow scroll
           flow crash
-          # The same crash check by URL: /#app, then only the hash changes, 1.5 s apart, a screenshot after each.
+          # Old demo addresses by URL: /#app, then only the hash changes, 1.5 s apart, a screenshot after each
+          # (the site has no demo since 2026-11-14, so each should show the front page).
           xcrun simctl openurl "$UDID" "$BASE/#app" && sleep 10
           xcrun simctl io "$UDID" screenshot h00-app.png
           n=0

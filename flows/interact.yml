@@ -1,113 +1,66 @@
-# Taps through the site in Safari with a screenshot after each step (recorded as interact.mp4).
-# Every step is optional, so one miss does not hide the steps after it: the screenshots show
-# what happened. The Inbox tab's name carries its badge ("Inbox 2"), hence 'Inbox.*'.
+# The front page in Safari with a screenshot after each step (recorded as interact.mp4): it loads, "Get the app" goes
+# to its section, swipes reach the page end, then the FAQ: the "+" of "When am I charged?" opens it, the "+" of
+# "Who can see my address?" (mid-list) opens it too, and the first one's button closes it again. Each tap lands on the
+# round "+" button: 93% across the question's button, half way down (point within the element, Maestro 2.0.4 and later).
+# The middle steps are optional, so one miss does not hide the steps after it (the screenshots show what happened);
+# the last two checks are hard, so a wrong end state fails the run.
 appId: com.apple.mobilesafari
 ---
 - openLink: ${BASE}/?r=i1#front
 - extendedWaitUntil:
     visible: "Get the app"
-    timeout: 60000
+    timeout: 90000
+- waitForAnimationToEnd:
+    timeout: 5000
 - takeScreenshot: i01-front
 - tapOn:
     text: "Get the app"
     index: 0
     optional: true
 - waitForAnimationToEnd:
-    timeout: 4000
+    timeout: 5000
 - takeScreenshot: i02-get-the-app
-- scrollUntilVisible:
-    element:
-      text: 'When am I charged\?'
-    direction: DOWN
-    timeout: 40000
+- repeat:
+    times: 40
+    while:
+      notVisible: "Terms of Service"
+    commands:
+      - swipe:
+          start: 50%, 80%
+          end: 50%, 45%
+          duration: 400
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: i03-faq-closed
+- tapOn:
+    text: 'When am I charged\?'
+    index: 0
+    point: "93%,50%"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: i04-faq-first-open
+- assertVisible:
+    text: 'When you accept a bid.*'
+    optional: true
+- tapOn:
+    text: 'Who can see my address\?'
+    index: 0
+    point: "93%,50%"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: i05-faq-mid-list-open
+- assertVisible:
+    text: 'Only the worker you hire.*'
     optional: true
 - tapOn:
     text: 'When am I charged\?'
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i03-faq-open
-# The demo part starts from its own link, so a map that traps the scroll cannot block it.
-- openLink: ${BASE}/?r=i2#app
-- extendedWaitUntil:
-    visible: 'Inbox.*'
-    timeout: 20000
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i04-demo-home
-- tapOn:
-    text: "Discover"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i05-discover
-- tapOn:
-    text: 'Inbox.*'
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i06-inbox
-- tapOn:
-    text: "Profile"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i07-profile
-- tapOn:
-    text: "Create"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i08-create-sheet
-- tapOn:
-    text: "Close"
-    optional: true
-- tapOn:
-    text: 'Inbox.*'
-    optional: true
-- tapOn:
-    text: ".*Andre.*"
     index: 0
+    point: "93%,50%"
     optional: true
 - waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i09-chat-andre
-# The message field by its place on the iPhone 16: its accessible label "Message" sits over the + button.
-- tapOn:
-    point: "45%,68%"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i10-keyboard
-- tapOn:
-    text: "Add to message"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i11-plus-menu
-- tapOn:
-    point: "50%,30%"
-    optional: true
-- takeScreenshot: i12-keyboard-closed
-- tapOn:
-    text: "Profile"
-    optional: true
-- scrollUntilVisible:
-    element:
-      text: "Dark"
-    direction: DOWN
-    timeout: 20000
-    optional: true
-- tapOn:
-    text: "Dark"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i13-profile-dark
-- tapOn:
-    text: "Exit the demo, back to the Brazos site"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: i14-exit-demo
+    timeout: 5000
+- takeScreenshot: i06-faq-first-closed
+- assertVisible: 'Only the worker you hire.*'
+- assertNotVisible: 'When you accept a bid.*'
