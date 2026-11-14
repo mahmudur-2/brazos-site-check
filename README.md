@@ -5,7 +5,7 @@ Screenshots of the Brazos website in Safari on iOS Simulators (the same Safari a
 One run of `.github/workflows/ios-safari.yml` gives one artifact, `ios-safari-<label>`:
 
 - `iphone-se/`, `iphone-16/`, `iphone-16-pro-max/`, `ipad/`: the front page from top to bottom, every demo screen, the legal pages and the 404 page in a light system, then the front page, demo Home and a chat in a dark system. `log.tsv` lists each URL; `device.txt` names the simulator and iOS version.
-- `maestro/`: taps through the site on the iPhone (Get the app, a FAQ answer, the demo tabs, Create, a chat with the keyboard open, Dark, exit), a screenshot after each step, plus `scroll.mp4` (the front page swiped top to bottom) and `interact.mp4`.
+- `maestro/`: taps through the site on the iPhone (Get the app, a FAQ answer, the demo tabs, Create, a chat with the keyboard open, Dark, exit), a screenshot after each step, plus `scroll.mp4` (the front page swiped top to bottom) and `interact.mp4`; `c*.png` and `crash.mp4` tap the demo path where Playwright WebKit on Windows crashed (/#app, Discover, Inbox, first conversation, Profile), and `h*.png` load demo hashes 1.5 s apart in one page.
 
 ## Check the live site
 

@@ -1,5 +1,6 @@
 # Swipes the front page from top to bottom like a thumb (recorded as scroll.mp4). Each round swipes once
-# low on the screen, then once high: in run 1 the low swipe alone stuck for good on the workers map.
+# mid-screen like a thumb, then once along the left edge: runs 1 and 2 stuck for good on the workers map
+# (it covers the middle of the screen and does not pass a vertical swipe to the page).
 appId: com.apple.mobilesafari
 ---
 - openLink: ${BASE}/?r=s1#front
@@ -19,8 +20,8 @@ appId: com.apple.mobilesafari
           end: 50%, 45%
           duration: 400
       - swipe:
-          start: 50%, 35%
-          end: 50%, 8%
+          start: 7%, 78%
+          end: 7%, 40%
           duration: 400
 - waitForAnimationToEnd:
     timeout: 5000

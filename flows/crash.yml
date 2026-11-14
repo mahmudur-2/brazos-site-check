@@ -1,0 +1,29 @@
+# The in-app tap path where Playwright WebKit on Windows crashed during View Transitions
+# ("Target crashed" on the 4th tap, 3 of 3 runs): /#app, Discover, Inbox, first conversation, Profile.
+appId: com.apple.mobilesafari
+---
+- openLink: ${BASE}/?r=c1#app
+- extendedWaitUntil:
+    visible: 'Inbox.*'
+    timeout: 60000
+- takeScreenshot: c01-app
+- tapOn:
+    text: "Discover"
+    optional: true
+- takeScreenshot: c02-discover
+- tapOn:
+    text: 'Inbox.*'
+    optional: true
+- takeScreenshot: c03-inbox
+- tapOn:
+    text: ".*Andre.*"
+    index: 0
+    optional: true
+- takeScreenshot: c04-first-conversation
+- tapOn:
+    text: "Profile"
+    optional: true
+- takeScreenshot: c05-profile
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: c06-profile-settled

@@ -125,18 +125,34 @@ jobs:
           # The first start installs Maestro's driver (minutes on these Macs); one retry if it times out.
           maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" \
             || maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" || status=1
-          for flow in "scroll s01-top s02-end" "interact i01-front i14-exit-demo"; do
-            set -- $flow
+          # flow <name> <first screenshot> <last screenshot>: run it, recording <name>.mp4 between the two.
+          flow() {
             rm -f stop-recording
             bash "$GITHUB_WORKSPACE/tools/record.sh" "$UDID" "$PWD/$1.mp4" "$2" "$3" &
             maestro test -e BASE="$BASE" --debug-output "debug-$1" "$flows/$1.yml" || status=1
             touch stop-recording
             wait
+            rm -f stop-recording
+          }
+          flow scroll s01-top s02-end
+          flow crash c01-app c06-profile-settled
+          # The same crash check by URL: /#app, then only the hash changes, 1.5 s apart, a screenshot after each.
+          xcrun simctl openurl "$UDID" "$BASE/#app" && sleep 10
+          xcrun simctl io "$UDID" screenshot h00-app.png
+          n=0
+          for hash in app-customer app-person-noah app-checkout-j1 app-finished-j3 app-review-j4 app-job-j1; do
+            n=$((n + 1))
+            xcrun simctl openurl "$UDID" "$BASE/#$hash" || echo "openurl #$hash failed"
+            sleep 1.5
+            xcrun simctl io "$UDID" screenshot "h0$n-$hash.png"
           done
-          rm -f stop-recording
+          sleep 5 && xcrun simctl io "$UDID" screenshot h07-settled.png
+          flow interact i01-front i14-exit-demo
           # Maestro saves takeScreenshot files in its hidden output folders: one flat copy here.
-          find "$GITHUB_WORKSPACE" "$HOME/.maestro" -name '[wsi][0-9][0-9]-*.png' -not -path "$PWD/[wsi][0-9][0-9]-*" \
+          find "$GITHUB_WORKSPACE" "$HOME/.maestro" -name '[wsic][0-9][0-9]-*.png' -not -path "$PWD/[wsic][0-9][0-9]-*" \
             -exec cp {} . \; 2>/dev/null || true
+          # The simulator's own log runs to 160 MB a flow; Maestro's logs and hierarchies stay.
+          find . -name device-simulator.log -delete
           ls -la
           exit "$status"
 

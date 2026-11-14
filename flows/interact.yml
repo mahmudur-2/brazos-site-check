@@ -1,6 +1,6 @@
 # Taps through the site in Safari with a screenshot after each step (recorded as interact.mp4).
 # Every step is optional, so one miss does not hide the steps after it: the screenshots show
-# what happened.
+# what happened. The Inbox tab's name carries its badge ("Inbox 2"), hence 'Inbox.*'.
 appId: com.apple.mobilesafari
 ---
 - openLink: ${BASE}/?r=i1#front
@@ -37,7 +37,7 @@ appId: com.apple.mobilesafari
     text: "Try the demo"
     optional: true
 - extendedWaitUntil:
-    visible: "Inbox"
+    visible: 'Inbox.*'
     timeout: 20000
     optional: true
 - waitForAnimationToEnd:
@@ -50,7 +50,7 @@ appId: com.apple.mobilesafari
     timeout: 4000
 - takeScreenshot: i05-discover
 - tapOn:
-    text: "Inbox"
+    text: 'Inbox.*'
     optional: true
 - waitForAnimationToEnd:
     timeout: 4000
@@ -71,7 +71,7 @@ appId: com.apple.mobilesafari
     text: "Close"
     optional: true
 - tapOn:
-    text: "Inbox"
+    text: 'Inbox.*'
     optional: true
 - tapOn:
     text: ".*Andre.*"
@@ -81,7 +81,7 @@ appId: com.apple.mobilesafari
     timeout: 4000
 - takeScreenshot: i09-chat-andre
 - tapOn:
-    text: "Message Andre"
+    text: 'Message( Andre)?'
     optional: true
 - waitForAnimationToEnd:
     timeout: 4000
