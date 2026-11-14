@@ -80,8 +80,9 @@ appId: com.apple.mobilesafari
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: i09-chat-andre
+# The message field by its place on the iPhone 16: its accessible label "Message" sits over the + button.
 - tapOn:
-    text: 'Message( Andre)?'
+    point: "45%,68%"
     optional: true
 - waitForAnimationToEnd:
     timeout: 4000

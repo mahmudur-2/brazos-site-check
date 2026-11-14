@@ -125,17 +125,18 @@ jobs:
           # The first start installs Maestro's driver (minutes on these Macs); one retry if it times out.
           maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" \
             || maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" || status=1
-          # flow <name> <first screenshot> <last screenshot>: run it, recording <name>.mp4 between the two.
+          # flow <name>: run it, recording <name>.mp4 from the flow's first step to its end.
           flow() {
-            rm -f stop-recording
-            bash "$GITHUB_WORKSPACE/tools/record.sh" "$UDID" "$PWD/$1.mp4" "$2" "$3" &
-            maestro test -e BASE="$BASE" --debug-output "debug-$1" "$flows/$1.yml" || status=1
+            rm -f stop-recording "$1.out" "$1.rc"
+            bash "$GITHUB_WORKSPACE/tools/record.sh" "$UDID" "$PWD/$1.mp4" "$PWD/$1.out" &
+            { maestro test -e BASE="$BASE" --debug-output "debug-$1" "$flows/$1.yml"; echo $? > "$1.rc"; } 2>&1 | tee "$1.out"
+            [ "$(cat "$1.rc")" = 0 ] || status=1
             touch stop-recording
             wait
-            rm -f stop-recording
+            rm -f stop-recording "$1.out" "$1.rc"
           }
-          flow scroll s01-top s02-end
-          flow crash c01-app c06-profile-settled
+          flow scroll
+          flow crash
           # The same crash check by URL: /#app, then only the hash changes, 1.5 s apart, a screenshot after each.
           xcrun simctl openurl "$UDID" "$BASE/#app" && sleep 10
           xcrun simctl io "$UDID" screenshot h00-app.png
@@ -147,7 +148,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "h0$n-$hash.png"
           done
           sleep 5 && xcrun simctl io "$UDID" screenshot h07-settled.png
-          flow interact i01-front i14-exit-demo
+          flow interact
           # Maestro saves takeScreenshot files in its hidden output folders: one flat copy here.
           find "$GITHUB_WORKSPACE" "$HOME/.maestro" -name '[wsic][0-9][0-9]-*.png' -not -path "$PWD/[wsic][0-9][0-9]-*" \
             -exec cp {} . \; 2>/dev/null || true

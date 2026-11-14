@@ -117,6 +117,18 @@ def blank(img):
     return sum(hist[max(0, top - 6):top + 7]) / (body.size[0] * body.size[1]) > 0.985
 
 
+def safari_page(path):
+    """Safari's own Start Page (shown while a slow page loads): a quarter or more of the screen in one neutral
+    grey. The site's own backgrounds are all tinted (warm beige, or dark green in the demo's dark mode)."""
+    from PIL import Image
+    with Image.open(path) as im:
+        w, h = im.size
+        body = im.convert("RGB").crop((0, h // 10, w, h * 85 // 100)).resize((80, round(80 * h * 0.75 / w)))
+    colours = body.point(lambda v: v // 4 * 4).getcolors(1 << 18)
+    n, (r, g, b) = max(colours)
+    return max(abs(r - g), abs(g - b), abs(r - b)) <= 6 and n / (body.size[0] * body.size[1]) >= 0.25
+
+
 TAB_DIRS = []
 
 
@@ -134,25 +146,33 @@ def close_tabs(udid):
 
 
 def shot(udid, url, path, log, last):
-    """Open the URL in a fresh Safari with one tab, then screenshot until the page is not blank, differs from the
-    last screen (`last`), and three shots in a row match. A page that keeps moving is taken at 20 s;
-    a blank one, or one still showing the last screen, is waited for up to 45 s."""
-    close_tabs(udid)
-    retry("xcrun", "simctl", "openurl", udid, url)
+    """Open the URL in a fresh Safari with one tab, then screenshot until the page is not blank, not Safari's
+    Start Page, differs from the last screen (`last`), and three shots in a row match. A page that keeps moving
+    is taken at 20 s; a blank one, or one still showing the last screen, is waited for up to 45 s.
+    Still blank or the Start Page at 45 s: the URL is opened once more."""
     start = time.time()
-    time.sleep(2.5)
-    prev, calm = None, 0
-    while True:
-        run("xcrun", "simctl", "io", udid, "screenshot", "--type=png", path)
-        cur = look(path)
-        calm = calm + 1 if prev is not None and same(prev, cur) else 0
-        prev = cur
-        waited = time.time() - start
-        new = not blank(cur) and not (last is not None and same(last, cur))
-        if (new and (calm >= 2 or waited > 20)) or waited > 45:
+    for attempt in (1, 2):
+        close_tabs(udid)
+        retry("xcrun", "simctl", "openurl", udid, url)
+        opened = time.time()
+        time.sleep(2.5)
+        prev, calm = None, 0
+        while True:
+            run("xcrun", "simctl", "io", udid, "screenshot", "--type=png", path)
+            cur = look(path)
+            calm = calm + 1 if prev is not None and same(prev, cur) else 0
+            prev = cur
+            waited = time.time() - opened
+            loaded = not blank(cur) and not safari_page(path)
+            new = loaded and not (last is not None and same(last, cur))
+            if (new and (calm >= 2 or waited > 20)) or waited > 45:
+                break
+            time.sleep(0.5)
+        if loaded:
             break
-        time.sleep(0.5)
-    state = ("BLANK" if blank(cur) else "same as the last screen" if last is not None and same(last, cur)
+        print(os.path.basename(path), "not loaded at 45 s; opening it again", flush=True)
+    state = ("BLANK" if blank(cur) else "SAFARI START PAGE" if safari_page(path)
+             else "same as the last screen" if last is not None and same(last, cur)
              else "still" if calm >= 2 else "still moving")
     log.write(f"{os.path.basename(path)}\t{time.time() - start:.1f}s\t{state}\t{url}\n")
     log.flush()
