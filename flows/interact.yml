@@ -27,15 +27,8 @@ appId: com.apple.mobilesafari
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: i03-faq-open
-- scrollUntilVisible:
-    element:
-      text: "Try the demo"
-    direction: UP
-    timeout: 40000
-    optional: true
-- tapOn:
-    text: "Try the demo"
-    optional: true
+# The demo part starts from its own link, so a map that traps the scroll cannot block it.
+- openLink: ${BASE}/?r=i2#app
 - extendedWaitUntil:
     visible: 'Inbox.*'
     timeout: 20000
