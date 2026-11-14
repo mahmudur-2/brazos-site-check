@@ -1,0 +1,119 @@
+# Taps through the site in Safari with a screenshot after each step (recorded as interact.mp4).
+# Every step is optional, so one miss does not hide the steps after it: the screenshots show
+# what happened.
+appId: com.apple.mobilesafari
+---
+- openLink: ${BASE}/?r=i1#front
+- extendedWaitUntil:
+    visible: "Get the app"
+    timeout: 60000
+- takeScreenshot: i01-front
+- tapOn:
+    text: "Get the app"
+    index: 0
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i02-get-the-app
+- scrollUntilVisible:
+    element:
+      text: "When am I charged\?"
+    direction: DOWN
+    timeout: 40000
+    optional: true
+- tapOn:
+    text: "When am I charged\?"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i03-faq-open
+- scrollUntilVisible:
+    element:
+      text: "Try the demo"
+    direction: UP
+    timeout: 40000
+    optional: true
+- tapOn:
+    text: "Try the demo"
+    optional: true
+- extendedWaitUntil:
+    visible: "Inbox"
+    timeout: 20000
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i04-demo-home
+- tapOn:
+    text: "Discover"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i05-discover
+- tapOn:
+    text: "Inbox"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i06-inbox
+- tapOn:
+    text: "Profile"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i07-profile
+- tapOn:
+    text: "Create"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i08-create-sheet
+- tapOn:
+    text: "Close"
+    optional: true
+- tapOn:
+    text: "Inbox"
+    optional: true
+- tapOn:
+    text: ".*Andre.*"
+    index: 0
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i09-chat-andre
+- tapOn:
+    text: "Message Andre"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i10-keyboard
+- tapOn:
+    text: "Add to message"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i11-plus-menu
+- tapOn:
+    point: "50%,30%"
+    optional: true
+- takeScreenshot: i12-keyboard-closed
+- tapOn:
+    text: "Profile"
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Dark"
+    direction: DOWN
+    timeout: 20000
+    optional: true
+- tapOn:
+    text: "Dark"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i13-profile-dark
+- tapOn:
+    text: "Exit the demo, back to the Brazos site"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: i14-exit-demo

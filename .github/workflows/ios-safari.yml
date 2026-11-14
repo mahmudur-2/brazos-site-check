@@ -1,0 +1,165 @@
+name: iOS Safari
+
+# The Brazos website in Safari on iOS Simulators (the same Safari as a real iPhone): screenshots
+# on four devices, and one Maestro pass that taps through the site on an iPhone with two videos.
+# Everything lands in one artifact, ios-safari-<label>. Nothing here signs in anywhere.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Site origin, or "local" to serve this repo's dist/ on the Mac
+        type: string
+        default: https://brazos.brazosapp.workers.dev
+      label:
+        description: Name of this run's results
+        type: string
+        default: live
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-safari
+  cancel-in-progress: false
+
+jobs:
+  shots:
+    name: Screenshots, ${{ matrix.key }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: iphone-se
+            names: iPhone SE (3rd generation)
+            step: 480
+          - key: iphone-16
+            names: iPhone 16|iPhone 15
+            step: 613
+          - key: iphone-16-pro-max
+            names: iPhone 16 Pro Max|iPhone 15 Pro Max
+            step: 688
+          - key: ipad
+            names: iPad Air 11-inch*|iPad (10th generation)
+            step: 850
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Pick the site
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+        run: bash tools/site.sh
+
+      - name: Install Pillow
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pillow
+
+      - name: Screenshots
+        env:
+          NAMES: ${{ matrix.names }}
+          STEP: ${{ matrix.step }}
+          KEY: ${{ matrix.key }}
+        run: |
+          xcrun simctl list runtimes
+          "$RUNNER_TEMP/venv/bin/python" tools/shoot.py --names "$NAMES" --step "$STEP" --out "out/$KEY"
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: part-${{ matrix.key }}
+          path: out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Shut the simulators down
+        if: always()
+        run: xcrun simctl shutdown all
+
+  maestro:
+    name: Taps and scroll video, iPhone 16
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Pick the site
+        env:
+          BASE_INPUT: ${{ inputs.base }}
+        run: bash tools/site.sh
+
+      - name: Boot the iPhone
+        run: |
+          udid=$(python3 tools/shoot.py --names "iPhone 16|iPhone 15" --boot-only)
+          echo "UDID=$udid" >> "$GITHUB_ENV"
+
+      # As in the Brazos app repo's e2e-ios.yml: the release zip, two download routes.
+      - name: Install Maestro
+        env:
+          MAESTRO_VERSION: 2.12.1
+          MAESTRO_CLI_NO_ANALYTICS: 1
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/maestro.zip" "https://github.com/mobile-dev-inc/maestro/releases/download/cli-${MAESTRO_VERSION}/maestro.zip" \
+            || { echo "web download failed; trying the API asset route"; rm -f "$RUNNER_TEMP/maestro.zip";
+                 gh release download "cli-${MAESTRO_VERSION}" -R mobile-dev-inc/maestro -p maestro.zip -O "$RUNNER_TEMP/maestro.zip"; }
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$HOME/.maestro-dist"
+          bin=$(find "$HOME/.maestro-dist" -type f -path '*/bin/maestro' | head -1)
+          [ -n "$bin" ] || { echo "no bin/maestro in the release zip"; exit 1; }
+          echo "$(dirname "$bin")" >> "$GITHUB_PATH"
+          "$bin" --version
+
+      - name: Maestro in Safari
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+          MAESTRO_CLI_NO_ANALYTICS: 1
+        run: |
+          flows="$GITHUB_WORKSPACE/flows"
+          mkdir -p out/maestro && cd out/maestro
+          status=0
+          # The first start installs Maestro's driver (minutes on these Macs); one retry if it times out.
+          maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" \
+            || maestro test -e BASE="$BASE" --debug-output debug-warmup "$flows/warmup.yml" || status=1
+          for name in scroll interact; do
+            xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$name.mp4" &
+            recorder=$!
+            sleep 2
+            maestro test -e BASE="$BASE" --debug-output "debug-$name" "$flows/$name.yml" || status=1
+            # SIGINT lets simctl finish the mp4.
+            kill -INT "$recorder"
+            wait "$recorder" || true
+          done
+          cp -R ~/.maestro/tests maestro-tests 2>/dev/null || true
+          exit "$status"
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: part-maestro
+          path: out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Shut the simulator down
+        if: always()
+        run: xcrun simctl shutdown all
+
+  merge:
+    name: One artifact
+    needs: [shots, maestro]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge the parts
+        uses: actions/upload-artifact/merge@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-safari-${{ inputs.label }}
+          pattern: part-*
+          delete-merged: true
+          retention-days: 14

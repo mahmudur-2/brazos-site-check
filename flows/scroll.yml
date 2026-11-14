@@ -1,0 +1,22 @@
+# Swipes the front page from top to bottom like a thumb (recorded as scroll.mp4).
+appId: com.apple.mobilesafari
+---
+- openLink: ${BASE}/?r=s1#front
+- extendedWaitUntil:
+    visible: "Get the app"
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: s01-top
+- repeat:
+    times: 60
+    while:
+      notVisible: "Terms of Service"
+    commands:
+      - swipe:
+          start: 50%, 78%
+          end: 50%, 38%
+          duration: 400
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: s02-end

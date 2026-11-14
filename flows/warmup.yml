@@ -1,0 +1,8 @@
+# Starts Maestro's driver and Safari before the recorded flows, so the videos skip that wait.
+appId: com.apple.mobilesafari
+---
+- openLink: ${BASE}/?r=w1#front
+- extendedWaitUntil:
+    visible: "Get the app"
+    timeout: 90000
+- takeScreenshot: w01-first-launch
